@@ -29,7 +29,7 @@ class AuthVerify(HomeAssistantView):
             peername = request.transport.get_extra_info("peername")
             if not peername:
                 _LOGGER.warning("HA_AUTH_VERIFY: Unable to get peername for request.")
-                return None  # Drop the request silently
+                self.drop_connection(request)
             client_ip = peername[0]
             _LOGGER.debug(f"HA_AUTH_VERIFY: Client IP from peername: {client_ip}")
 
@@ -38,10 +38,10 @@ class AuthVerify(HomeAssistantView):
             client_ip_obj = ipaddress.ip_address(client_ip)
             if client_ip_obj not in self.trusted_subnet:
                 _LOGGER.warning(f"HA_AUTH_VERIFY: Unauthorized access attempt from IP: {client_ip}")
-                return None  # Drop the request silently
+                self.drop_connection(request)
         except ValueError as e:
             _LOGGER.error(f"HA_AUTH_VERIFY: Invalid client IP: {client_ip}, Error: {e}")
-            return None  # Drop the request silently
+            self.drop_connection(request)
 
         # Look up the email for the given module
         email = next((item["email"] for item in self.modules if item["module"] == module), None)
@@ -50,3 +50,13 @@ class AuthVerify(HomeAssistantView):
 
         # Return the email as the response
         return web.json_response({"email": email}, status=200)
+
+    def drop_connection(self, request):
+        """
+        Drops the connection by forcibly closing the transport.
+        """
+        transport = request.transport
+        if transport:
+            _LOGGER.debug("HA_AUTH_VERIFY: Dropping connection.")
+            transport.close()
+        raise ConnectionResetError("Connection dropped")
