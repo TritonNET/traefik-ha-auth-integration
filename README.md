@@ -1,1 +1,1 @@
-# traefik-ha-auth-integration
+# Home Assistant Auth Verify
